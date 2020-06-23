@@ -1,0 +1,13 @@
+rootProject.name = 'record.pb'
+
+ext.common_dir = "../../common"
+['utils'].each {
+	include ":$it"
+	project(":$it").projectDir = file("${common_dir}/$it")
+}
+
+ext.record_dir = ".."
+['record'].each {
+	include ":$it"
+	project(":$it").projectDir = file("${record_dir}/$it")
+}
