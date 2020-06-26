@@ -25,6 +25,8 @@ import utils.func.Tuple;
  * @author Kang-Woo Lee (ETRI)
  */
 public class PBValueProtos {
+	public static ValueProto NONE = ValueProto.newBuilder().build();
+	
 	private PBValueProtos() {
 		throw new AssertionError("Should not be called: " + getClass());
 	}

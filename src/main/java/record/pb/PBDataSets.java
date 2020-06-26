@@ -1,10 +1,15 @@
 package record.pb;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.io.OutputStream;
 import java.util.List;
 import java.util.concurrent.CancellationException;
+import java.util.function.Supplier;
 
 import org.slf4j.LoggerFactory;
 
@@ -13,12 +18,13 @@ import proto.RecordSchemaProto;
 import proto.RecordSchemaProto.ColumnProto;
 import proto.ValueProto;
 import record.Column;
+import record.DataSet;
+import record.DataSetException;
 import record.DefaultRecord;
 import record.Record;
 import record.RecordSchema;
-import record.RecordSet;
-import record.RecordSetReader;
-import record.RecordSetWriter;
+import record.RecordStream;
+import record.DataSetWriter;
 import record.type.DataType;
 import utils.Utilities;
 import utils.async.AbstractThreadedExecution;
@@ -30,21 +36,40 @@ import utils.stream.FStream;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class PBRecords {
-	private PBRecords() {
+public class PBDataSets {
+	private PBDataSets() {
 		throw new AssertionError("Should not be called here: class=" + getClass());
 	}
 	
-	public static RecordSetReader getReader(InputStream is) {
-		return new PBRecordSetReader(() -> is);
+	public static DataSet fromFile(File file) {
+		Supplier<InputStream> supplier = () -> {
+			try {
+				return new FileInputStream(file);
+			}
+			catch ( IOException e ) {
+				throw new DataSetException("invalid PBDataSet file: path=" + file);
+			}
+		};
+		
+		return new PBDataSet(supplier);
 	}
 	
-	public static RecordSetWriter getWriter(OutputStream os) {
-		return new PBRecordSetWriter(os);
+	public static DataSet fromBytes(byte[] bytes, int offset, int length) {
+		Supplier<InputStream> supplier = () -> new ByteArrayInputStream(bytes, offset, length);
+		return new PBDataSet(supplier);
+	}
+	
+	public static DataSet fromBytes(byte[] bytes) {
+		Supplier<InputStream> supplier = () -> new ByteArrayInputStream(bytes);
+		return new PBDataSet(supplier);
+	}
+	
+	public static DataSetWriter writer(OutputStream os) {
+		return new PBDataSetWriter(os);
 	}
 
 	private static final int DEFAULT_PIPE_SIZE = 64 * 1024;
-	public static InputStream toInputStream(RecordSet rset) {
+	public static InputStream toInputStream(RecordStream rset) {
 		return new InputStreamFromOutputStream(os -> {
 			WriteRecordSetToOutStream pump = new WriteRecordSetToOutStream(rset, os);
 			pump.start();
@@ -122,10 +147,10 @@ public class PBRecords {
 	}
 	
 	private static class WriteRecordSetToOutStream extends AbstractThreadedExecution<Long> {
-		private final RecordSet m_rset;
+		private final RecordStream m_rset;
 		private final OutputStream m_os;
 		
-		private WriteRecordSetToOutStream(RecordSet rset, OutputStream os) {
+		private WriteRecordSetToOutStream(RecordStream rset, OutputStream os) {
 			m_rset = rset;
 			m_os = os;
 			

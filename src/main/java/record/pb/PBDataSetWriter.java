@@ -7,35 +7,31 @@ import java.util.concurrent.CancellationException;
 
 import record.DefaultRecord;
 import record.Record;
-import record.RecordSet;
-import record.RecordSetWriter;
+import record.RecordStream;
+import record.RecordStreamException;
+import record.DataSetWriter;
 import utils.io.IOUtils;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-class PBRecordSetWriter implements RecordSetWriter {
+class PBDataSetWriter implements DataSetWriter {
 	private final OutputStream m_out;
 	
-	PBRecordSetWriter(OutputStream out) {
+	PBDataSetWriter(OutputStream out) {
 		m_out = out;
 	}
 
 	@Override
-	public void close() throws IOException {
-		m_out.close();
-	}
-
-	@Override
-	public long write(RecordSet rset) throws IOException {
-		Record rec = DefaultRecord.of(rset.getRecordSchema());
+	public long write(RecordStream stream) {
+		Record rec = DefaultRecord.of(stream.getRecordSchema());
 		
 		long count = 0;
 		try {
-			PBRecords.toProto(rset.getRecordSchema()).writeDelimitedTo(m_out);
-			while ( rset.next(rec) ) {
-				PBRecords.toProto(rec).writeDelimitedTo(m_out);
+			PBDataSets.toProto(stream.getRecordSchema()).writeDelimitedTo(m_out);
+			while ( stream.next(rec) ) {
+				PBDataSets.toProto(rec).writeDelimitedTo(m_out);
 				++count;
 			}
 			
@@ -44,8 +40,10 @@ class PBRecordSetWriter implements RecordSetWriter {
 		catch ( InterruptedIOException e ) {
 			throw new CancellationException("" + e);
 		}
+		catch ( IOException e ) {
+			throw new RecordStreamException("" + e);
+		}
 		finally {
-			rset.closeQuietly();
 			IOUtils.closeQuietly(m_out);
 		}
 	}
